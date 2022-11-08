@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const csvHeader = 'Title,Number,Commercial name or trade designation,Tyre size designation,Tyre class,Load-capacity index,Speed category symbol,Fuel efficiency class,Wet grip class,External rolling noise class and level,Tyre for use in severe snow conditions,Tyre for use in severe ice conditions,Load version,Additional information, Label URL\n';
-const minimal_args = [
+const minimal_args = [ // Used for faster process
     '--autoplay-policy=user-gesture-required',
     '--disable-background-networking',
     '--disable-background-timer-throttling',
@@ -46,9 +46,10 @@ const main = async () => {
     let page = await browser.newPage(); // Add a page
     await page.goto(mainUrl); // Go to URL
 
-    await getSlots(page, browser);
+    await getSlots(page, browser); // Get slots on the page
 }
 
+// Function to get all tyres that are currently on the page
 const getSlots = async (page, browser) => {
     let slots;
     await page.waitForSelector("article"); // Wait for "article" tag to appear on the page
@@ -56,6 +57,7 @@ const getSlots = async (page, browser) => {
     openDetails(page, slots, browser); 
 }
 
+// Function to open Details of the tyre
 const openDetails = async (page, slots, browser) => {
     for(let i = 0; i < slots.length; i++) {
         let detailsBtn = await slots[i].$(".ecl-button--primary.pull-right.ecl-button"); // Get a "Details" button to click on
@@ -68,28 +70,26 @@ const openDetails = async (page, slots, browser) => {
         slots = await page.$$("article"); // Update the configuration of the slots
     }
 
-    if(await goToNextPage(page) === true) {
-        console.log("how de fuck");
-        await getSlots(page, browser);
+    if(await goToNextPage(page) === true) { // If it is possible to go to next page, do it and return true
+        await getSlots(page, browser); // Repeat process
     }
     else {
-        browser.close();
+        browser.close(); // Otherwise - close the browser
     }
 }
 
-
-// Done (works)
+// Function to record tyre data to .csv file
 const pushSlotDataToScraper = async (page) => {
-    await page.waitForSelector(".ecl-u-type-l.ecl-u-type-color-grey-75.ecl-u-type-family-alt");
-    let content = "";
+    await page.waitForSelector(".ecl-u-type-l.ecl-u-type-color-grey-75.ecl-u-type-family-alt"); // Wait for details to appear
+    let content = ""; // Variable to store information
 
     let title = await page.$eval(".ecl-u-type-l.ecl-u-type-color-grey-75.ecl-u-type-family-alt span", el => el.textContent); // Get title of the slot
     let number = await page.$eval(".ecl-u-d-inline-block.ecl-u-type-2xl.ecl-u-type-bold.ecl-u-type-color-blue.ecl-u-type-family-alt.ecl-u-mt-xs span", el => el.textContent); // Get description (ID) of the slot
     content += title + "," + number + ",";
-    let infoValues = await page.$$(".ecl-u-type-bold.ecl-u-pl-lg-xl.ecl-u-pr-2xs.text-right");
-    let dbValue = await page.$$(".ecl-u-type-bold.ecl-u-pr-2xs.text-right.ng-star-inserted");
-    let eightInfoValue = await page.$eval(".ecl-u-type-bold.ecl-u-pr-2xs.text-right.ecl-u-pl-lg-xl.ng-star-inserted", el => el.textContent) + "/" + await dbValue[1].evaluate(el => el.textContent);    
-    let label = await page.$eval("img[alt='Label']", el => el.src);
+    let infoValues = await page.$$(".ecl-u-type-bold.ecl-u-pl-lg-xl.ecl-u-pr-2xs.text-right"); // Get all info values
+    let dbValue = await page.$$(".ecl-u-type-bold.ecl-u-pr-2xs.text-right.ng-star-inserted"); // Get dB value (being separate from all info values)
+    let eightInfoValue = await page.$eval(".ecl-u-type-bold.ecl-u-pr-2xs.text-right.ecl-u-pl-lg-xl.ng-star-inserted", el => el.textContent) + "/" + await dbValue[1].evaluate(el => el.textContent); // Combine 8th info value with dB value
+    let label = await page.$eval("img[alt='Label']", el => el.src); // Get label source link
 
     for(let i = 0; i < infoValues.length; i++) {
         if(i == 7) {
@@ -102,32 +102,33 @@ const pushSlotDataToScraper = async (page) => {
 
     content += label + "\n";
 
-    writeToFile("output.csv", content);
+    writeToFile("output.csv", content); // Write to file
 }
 
+// Function to switch to the next page
 const goToNextPage = async (page) => {
     //await page.waitForNavigation();
     //await page.waitForSelector(".ecl-pagination__list");
-    let nextPageBtn = await page.$(".ecl-pagination__link.ecl-link.ecl-link--standalone.ecl-link--icon.ecl-link--icon-after.ng-star-inserted");
+    let nextPageBtn = await page.$(".ecl-pagination__link.ecl-link.ecl-link--standalone.ecl-link--icon.ecl-link--icon-after.ng-star-inserted"); // Get "Next" button
 
-    if(nextPageBtn) {
-        await nextPageBtn.evaluate(btn => btn.click());
-        return true;
+    if(nextPageBtn) { // If it exists
+        await nextPageBtn.evaluate(btn => btn.click()); // Click on it
+        return true; // And return true
     }
-    else {
+    else { // Otherwise return false
         return false;
     }
 }
 
 const writeToFile = (file, content) => {
-    var logStream = fs.createWriteStream(file, {flags: 'a'});
+    var logStream = fs.createWriteStream(file, {flags: 'a'}); // Create write stream for easy IO operation
     // use {flags: 'a'} to append and {flags: 'w'} to erase and write a new file
-    if(!fs.existsSync('./' + file)) {
-        logStream.write(csvHeader);
-        logStream.write(content);
+    if(!fs.existsSync('./' + file)) { // If file doesn't exist
+        logStream.write(csvHeader); // Add header
+        logStream.write(content); // And write content
     }
-    else {
-        logStream.write(content);
+    else { // If file exists
+        logStream.write(content); // Append records
     }
 }
 
