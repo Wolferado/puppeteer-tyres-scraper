@@ -64,7 +64,7 @@ const scrapTyresData = async (page, browser) => {
     
             await pushSlotDataToScraper(page); // Push data from slot
     
-            await page.goBack(); // Go back to the tyre list
+            page.goBack(); // Go back to the tyre list
 
             await page.waitForSelector("article"); // Wait for "article" tag (tyres slots) to appear on the page
             slots = await page.$$("article"); // Update the configuration of the slots
@@ -132,7 +132,7 @@ const writeToFile = (file, content) => {
     // use {flags: 'a'} to append and {flags: 'w'} to erase and write a new file
     if(!fs.existsSync('./' + file)) { // If file doesn't exist
         logStream.write(csvHeader); // Add header
-        logStream.write(content); // And write content
+        logStream.write(content); // And append record
     }
     else { // If file exists
         logStream.write(content); // Append records

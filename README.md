@@ -2,6 +2,6 @@
 
 A small scraper for https://eprel.ec.europa.eu/screen/product/tyres.
 
-Bugs can occur.
+There is a probability of a bug, where record dublicates at least once (not consistent).
 
 Created for a friend of mine.
